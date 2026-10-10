@@ -27,11 +27,13 @@ The test covers every standard MTU pair, asymmetric endpoints, invalid
 advertisements, and the old zero padding value. A CUDA compiler build is
 also possible without exposing a GPU to the compiler container.
 
-Hardware qualification remains pending. With both GPUs idle and the normal
+The symmetric active-MTU-1024 native tests and full model startup/inference
+passed on two GB10 hosts; see [QUALIFICATION.md](QUALIFICATION.md). Other
+MTUs/fabrics and sustained load remain unqualified. With both GPUs idle and the normal
 memory watchdog active, build a separate candidate library/kit, verify its
 manifest, and run the existing two-rank `bench_fc.py` exactness/graph tests
 on both endpoints at active MTU 1024 and 4096, including asymmetric limits.
 Confirm negotiated-MTU logs, correct sums/gathers, and absence of transport
 retry errors/Xid. Then qualify full model startup/inference separately.
-The external PyNccl workaround succeeded; that does not qualify this native
-MTU patch. Do not interrupt an active serving pair to run these tests.
+The earlier external PyNccl workaround is separate from the native
+qualification recorded in QUALIFICATION.md. Do not interrupt an active serving pair to run these tests.
