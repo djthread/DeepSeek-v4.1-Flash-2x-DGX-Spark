@@ -56,7 +56,8 @@ def main():
     assert sha(library) in module
     (kit / 'serving/ds41/fastcomm.py').write_text(module)
     (kit / 'native-source').mkdir(exist_ok=True)
-    shutil.copy2(HERE / 'fastcomm.cu', kit / 'native-source/fastcomm.cu')
+    for name in ('fastcomm.cu', 'fastcomm_mtu.h'):
+        shutil.copy2(HERE / name, kit / 'native-source' / name)
     for name, pairs in json.loads((HERE / 'edits.json').read_bytes()).items():
         for before, after in pairs:
             replace(kit / name, before, after)
