@@ -1,8 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """CPU-only coverage of the MTU policy used by the candidate native build."""
+import ast
+import hashlib
+import json
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -43,6 +47,39 @@ int main() {
                             '-I', str(ROOT / 'release/experimental/fastcomm'),
                             str(path / 'test.cpp'), '-o', str(path / 'test')], check=True)
             subprocess.run([str(path / 'test')], check=True)
+
+    def test_replace_integrated_kit_refreshes_verified_pins(self):
+        parent = ROOT / 'release/runtime'
+        manifest_sha = hashlib.sha256((parent / 'bundle-manifest.json').read_bytes()).hexdigest()
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            library = directory / 'candidate.so'
+            # This test checks packaging/integrity only, not ELF execution.
+            library.write_bytes(b'synthetic candidate for pin-refresh regression')
+            kit = directory / 'kit'
+            receipt = directory / 'receipt.json'
+            subprocess.run([sys.executable, '-B',
+                            str(ROOT / 'release/experimental/fastcomm/prepare_kit.py'),
+                            '--parent-kit', str(parent), '--parent-sha256', manifest_sha,
+                            '--library', str(library), '--output', str(kit),
+                            '--receipt', str(receipt), '--replace-existing'], check=True,
+                           capture_output=True, text=True)
+            proof = json.loads(receipt.read_text())
+            subprocess.run([sys.executable, '-B', str(parent / 'verify.py'), str(kit),
+                            '--manifest-sha256', proof['candidate_kit_sha256']],
+                           check=True, capture_output=True, text=True)
+            def assignment(path, name):
+                return next(ast.literal_eval(n.value) for n in ast.parse(path.read_text()).body
+                            if isinstance(n, ast.Assign) and any(
+                                isinstance(t, ast.Name) and t.id == name for t in n.targets))
+            module_sha = hashlib.sha256((kit / 'serving/ds41/fastcomm.py').read_bytes()).hexdigest()
+            pins = assignment(kit / 'serving/spark_combined_miaai.py', 'PINS')
+            attestation = assignment(kit / 'serving/spark_backend_attestation.py', 'PRIVATE_SOURCES')
+            self.assertEqual(pins['ds41.fastcomm'], module_sha)
+            self.assertEqual(attestation['ds41/fastcomm.py'], module_sha)
+            self.assertEqual(attestation['libfastcomm.so'], hashlib.sha256(library.read_bytes()).hexdigest())
+            self.assertTrue((kit / 'native-source/fastcomm_mtu.h').is_file())
+        self.assertEqual(hashlib.sha256((parent / 'bundle-manifest.json').read_bytes()).hexdigest(), manifest_sha)
 
 
 if __name__ == '__main__':

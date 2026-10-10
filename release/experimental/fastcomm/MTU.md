@@ -16,7 +16,9 @@ additional configuration/path validation.
 
 Build with `build.sh` into a fresh directory. `prepare_kit.py` includes the
 new header and registers the new library/source hashes in a fresh candidate
-kit and manifest. Do not replace the published runtime library, edit its
+kit and manifest. When the verified parent already integrates fastcomm, use
+`--replace-existing`: it checks the existing hooks/pins and refreshes the
+source dependency hashes without applying integration edits twice. Do not replace the published runtime library, edit its
 pins, or weaken verification to deploy this source change. This PR does not
 modify the shipped runtime, lock, manifests, or verified kernel caches.
 
